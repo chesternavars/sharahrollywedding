@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Google\Client;
 use Google\Service\Drive;
 use Illuminate\Support\Facades\Http;
 
@@ -15,24 +14,22 @@ class UploadController extends Controller
      * Initialize Google Drive Service
      */
 
-      public function index()
-    {
-        return response()->json(['message' => 'Upload API working']);
-    }
-    private function drive()
+    public function index()
 {
-
-
-    $client = new \Google\Client();
-
-    $client->setAuthConfig(
-        storage_path('app/google/navarrozawedding-04594488a7be.json')
-    );
-
+    return view('home');
+}
     
-   $client->addScope(\Google\Service\Drive::DRIVE);
 
-    return new \Google\Service\Drive($client);
+private function drive()
+{
+       
+
+
+    $client->setAuthConfig(storage_path('app/google/navarrozawedding-79fc6ac12117.json'));
+
+    $client->addScope(Drive::DRIVE);
+
+    return new Drive($client);
 }
 
     /**
@@ -40,104 +37,134 @@ class UploadController extends Controller
      */
  
 
-public function upload(Request $request)
+ public function uploadFile(Request $request)
 {
     $request->validate([
-        'files' => 'required|array',
-        'files.*' => 'image|mimes:jpg,jpeg,png,jfif,webp|max:5120'
+        'category' => 'required|string',
+        'files' => 'required',
+        'files.*' => 'image|max:5120'
     ]);
 
-    $accessToken = $this->getAccessToken();
-    $folderId = '1ImXddhW1JcdwCS2mlTTMvbkGOmeDR4Zf';
+    $user = session('user');
 
-    $results = [];
+    if (!$user) {
+        return redirect('/auth/google');
+    }
+
+    $accessToken = $user['token'];
+
+     $category = $request->category;
+
+    // 🎯 CATEGORY → FOLDER MAP
+    $folderMap = [
+        'Bride laughing genuinely' => '11nTnqcvs9kYCpFCthB33Y2d3mRXouySF',
+        'Groom fixing his suit/tie' => '1TMyKCYboqJxXnpBug1Br9460mpsNDbmx',
+        'Parents getting emotional' => '1cZKV-dCL8-Zf9YBR8Z8vq9kbUBQg52r-',
+        'First dance spin' => '1Vk2aKP9G_ntACKpvUnDpkdLfNF9ypqO_',
+        'A stolen kiss' => '1jjU6CQ307NFG16m9oTp6rjHYGgMs3Hhw',
+        'Group selfie with strangers' => '1dm5agUCMTng0RVV_5jy_erSZ-6bl2cC2',
+    ];
+
+
+      $folderId = $folderMap[$category] ?? env('GOOGLE_DRIVE_FOLDER_ID');
+
+
+    //$folderId = env('GOOGLE_DRIVE_FOLDER_ID');
+
+    $uploadedFiles = [];
+
 
     foreach ($request->file('files') as $file) {
 
-        if (!$file->isValid()) {
-            continue;
-        }
+    // $fileName = $category.'_'.time().'_'.preg_replace('/[^A-Za-z0-9._-]/', '', $file->getClientOriginalName());
 
-        $fileName = time().'_'.$file->getClientOriginalName();
+    $fileName = time().'_'.preg_replace('/[^A-Za-z0-9._-]/', '', $file->getClientOriginalName());
 
-        /*
-        |----------------------------------------------------
-        | STEP 1: CREATE EMPTY FILE IN DRIVE
-        |----------------------------------------------------
-        */
-        $meta = Http::withToken($accessToken)
-            ->post('https://www.googleapis.com/drive/v3/files', [
-                'name' => $fileName,
-                'parents' => [$folderId]
-            ])->json();
+    // 1. CREATE FILE
+    $meta = Http::withToken($accessToken)->post(
+    'https://www.googleapis.com/drive/v3/files?supportsAllDrives=true',
+    [
+        'name' => $fileName,
+        'parents' => [$folderId]
+        
+    ]
+);
 
-        if (!isset($meta['id'])) {
-            $results[] = [
-                'error' => 'metadata failed',
-                'file' => $fileName,
-                'google' => $meta
-            ];
-            continue;
-        }
+    $fileId = $meta->json('id');
 
-        $fileId = $meta['id'];
-
-        /*
-        |----------------------------------------------------
-        | STEP 2: UPLOAD FILE CONTENT (FIXED STREAM)
-        |----------------------------------------------------
-        */
-
-       $mime = $file->getClientMimeType();
-
-      $upload = Http::withToken($accessToken)
-    ->withHeaders([
-        'Content-Type' => $file->getClientMimeType()
-    ])
-    ->withBody(
-        fopen($file->getRealPath(), 'r'),
-        $file->getClientMimeType()
-    )
-    ->put("https://www.googleapis.com/upload/drive/v3/files?uploadType=media");
-    
-        if (!$upload->successful()) {
-            $results[] = [
-                'error' => 'upload failed',
-                'file' => $fileName,
-                'google' => $upload->body()
-            ];
-            continue;
-        }
-
-        /*
-        |----------------------------------------------------
-        | STEP 3: MAKE FILE PUBLIC
-        |----------------------------------------------------
-        */
-        Http::withToken($accessToken)
-            ->withHeaders([
-                'Content-Type' => 'application/json'
-            ])
-            ->post("https://www.googleapis.com/drive/v3/files/{$fileId}/permissions", [
-                'role' => 'reader',
-                'type' => 'anyone'
-            ]);
-
-        /*
-        |----------------------------------------------------
-        | RESULT
-        |----------------------------------------------------
-        */
-        $results[] = [
-            'id' => $fileId,
-            'link' => "https://drive.google.com/uc?id={$fileId}"
-        ];
+    if (!$fileId) {
+        dd($meta->body()); // IMPORTANT DEBUG
     }
 
+    // 2. UPLOAD CONTENT (IMPORTANT FIX HERE)
+    $upload = Http::withToken($accessToken)
+    ->withHeaders([
+        'Content-Type' => $file->getMimeType(),
+    ])
+    ->withBody(
+        file_get_contents($file->getRealPath()),
+        $file->getMimeType()
+    )
+    ->patch(
+        "https://www.googleapis.com/upload/drive/v3/files/{$fileId}?uploadType=media&supportsAllDrives=true"
+    );
+
+
+
+    if ($upload->failed()) {
+        dd($upload->body()); // show real Google error
+    }
+
+    if ($upload->status() == 401) {
+    // TOKEN EXPIRED
+    session()->forget('user');
     return response()->json([
-        'message' => 'Upload successful 💍',
-        'files' => $results
-    ]);
+        'error' => 'google_expired',
+        'redirect' => url('/auth/google')
+    ], 401);
+}
+
+
+
+
+  // SAVE TO JSON
+      $this->saveImages([
+    'file_id' => $fileId,
+    'category' => $category,
+    'url' => "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000"
+]);
+
+
+
+ 
+
+
+}
+
+ Http::withToken($accessToken)->post(
+    "https://www.googleapis.com/drive/v3/files/{$fileId}/permissions",
+    [
+        'role' => 'reader',
+        'type' => 'anyone'
+    ]
+);
+
+
+
+$url = "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000";
+$uploadedFiles[] = [
+    'id' => $fileId,
+    'name' => $fileName,
+    'url' => $url
+];
+
+ // $this->saveImages($images);
+
+
+
+
+
+    return back()->with('success', count($uploadedFiles).' images uploaded 💍');
 }
 
 
@@ -162,6 +189,54 @@ private function getAccessToken()
 
     return json_decode($response->getBody(), true)['access_token'];
 }
+
+
+
+
+
+private function getGoogleAccessToken()
+{
+    $credentials = json_decode(file_get_contents(storage_path('app/google/navarrozawedding-79fc6ac12117.json')), true);
+
+    $now = time();
+
+    $jwtHeader = base64_encode(json_encode([
+        'alg' => 'RS256',
+        'typ' => 'JWT'
+    ]));
+
+    $jwtClaim = base64_encode(json_encode([
+        'iss' => $credentials['client_email'],
+        'scope' => 'https://www.googleapis.com/auth/drive',
+        'aud' => 'https://oauth2.googleapis.com/token',
+        'iat' => $now,
+        'exp' => $now + 3600
+    ]));
+
+    $unsignedJwt = $jwtHeader.'.'.$jwtClaim;
+
+    openssl_sign(
+        $unsignedJwt,
+        $signature,
+        $credentials['private_key'],
+        'sha256'
+    );
+
+    $jwt = $unsignedJwt.'.'.base64_encode($signature);
+
+    $response = Http::asForm()->post('https://oauth2.googleapis.com/token', [
+        'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        'assertion' => $jwt
+    ]);
+
+     if (!$response->successful()) {
+        throw new \Exception($response->body());
+    }
+
+    return $response->json()['access_token'];
+}
+
+
 
 
 private function generateJwt($credentials)
@@ -199,6 +274,68 @@ public function testToken()
     return response()->json([
         'token' => $this->getAccessToken()
     ]);
+}
+
+
+
+public function album(Request $request)
+{
+    $category = $request->category;
+
+    $images = $this->getImages();
+
+    if ($category && $category != 'All') {
+        $images = array_filter($images, function ($img) use ($category) {
+            return $img['category'] == $category;
+        });
+    }
+
+    return view('album', compact('images', 'category'));
+}
+
+
+
+private function getImages()
+{
+    $path = storage_path('app/images.json');
+
+    if (!file_exists($path)) {
+        file_put_contents($path, json_encode([]));
+    }
+
+    return json_decode(file_get_contents($path), true);
+}
+
+private function saveImages($newImage)
+{
+    $path = storage_path('app/images.json');
+
+    // create file if not exists
+    if (!file_exists($path)) {
+        file_put_contents($path, json_encode([]));
+    }
+
+    // read existing
+    $images = json_decode(file_get_contents($path), true);
+
+    if (!is_array($images)) {
+        $images = [];
+    }
+
+    // prevent null data
+    if (empty($newImage)) {
+        return;
+    }
+
+    // add new image
+    $images[] = $newImage;
+
+    // save safely
+    file_put_contents(
+        $path,
+        json_encode($images, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
+        LOCK_EX
+    );
 }
 
 

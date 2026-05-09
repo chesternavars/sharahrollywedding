@@ -1,0 +1,102 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: url('/images/background.png') center/cover no-repeat;
+    color: white;
+}
+
+/* DARK OVERLAY */
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+}
+
+/* MAIN CONTAINER */
+.container {
+    position: relative;
+    z-index: 1;
+    max-width: 420px;
+    margin: auto;
+    text-align: center;
+    padding-top: 50px;
+}
+
+/* COUPLE IMAGE */
+.couple-img {
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid white;
+}
+
+/* TITLE */
+.title {
+    font-size: 38px;
+    font-family: 'Great Vibes', cursive;
+    margin: 20px 0 10px;
+}
+
+/* SUBTITLE */
+.subtitle {
+    font-size: 13px;
+    color: #ddd;
+    margin-bottom: 20px;
+}
+
+/* CARD */
+.card {
+    background: rgba(255,255,255,0.1);
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(10px);
+}
+
+/* INPUTS */
+.input {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    border: none;
+    outline: none;
+    font-size: 14px;
+}
+
+/* BUTTONS */
+.btn {
+    width: 100%;
+    padding: 10px;
+    border-radius: 25px;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.upload {
+    background: #e11d48;
+    color: white;
+}
+
+.outline {
+    background: transparent;
+    border: 1px solid white;
+    color: white;
+}
+
+/* FOOTER */
+.footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: #aaa;
+}
+
+/* SUCCESS MESSAGE */
+.success {
+    font-size: 12px;
+    color: #22c55e;
+    margin-bottom: 10px;
+}
