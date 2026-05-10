@@ -12,7 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+
+    $middleware->append(\Illuminate\Http\Middleware\HandleCors::class);
+
+    $middleware->alias([
+        'google.auth' => \App\Http\Middleware\GoogleAuth::class,
+    ]);
+
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

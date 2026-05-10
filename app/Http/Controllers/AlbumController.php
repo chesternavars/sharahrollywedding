@@ -16,6 +16,7 @@ class AlbumController extends Controller
 {
     $images = $this->getImages();
 
+    
     if (!is_array($images)) {
         $images = [];
     }
@@ -25,20 +26,40 @@ class AlbumController extends Controller
     // FILTER
     if ($category !== 'All') {
         $images = array_filter($images, function ($img) use ($category) {
-            return isset($img['category']) && $img['category'] === $category;
+            return isset($img['category']) &&
+       strtolower($img['category']) === strtolower($category);
         });
     }
 
     // FORCE URL ONLY
     $images = array_map(function ($img) {
 
-        return [
-            'category' => $img['category'] ?? '',
 
-            // 🔥 ALWAYS USE URL ONLY
-            'url' => $img['url'] ?? null
+       // extract fileId from url (safe fallback)
+    preg_match('/id=([^&]+)/', $img['url'] ?? '', $matches);
+    $fileId = $matches[1] ?? null;
+
+
+
+        return [
+            'category'    => $img['category'] ?? '',
+            'url'         => $img['url'] ?? null,
+            'type'        => $img['type'] ?? 'image',
+             'thumbnail'   => $fileId
+            ? "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000"
+            : null,
+            'created_at'  => $img['created_at'] ?? '1970-01-01 00:00:00'
         ];
     }, $images);
+
+
+  
+
+    $images = collect($images)
+    ->sortByDesc('created_at')
+    ->values()
+    ->all();
+
 
     return view('album', compact('images', 'category'));
 }

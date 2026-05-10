@@ -33,7 +33,7 @@ class GoogleController extends Controller
         'token' => $user->token,
     ]]);
 
-    return redirect('/dashboard');
+    return redirect('/');
 }
 
 

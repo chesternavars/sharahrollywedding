@@ -185,7 +185,7 @@ body {
         <div class="title">Sharah & Rolly</div>
         <div class="subtitle">Forever starts here 💍 Wedding Memories</div>
 
-        <form action="/upload" method="POST" enctype="multipart/form-data">
+        <form action="/upload" method="POST" enctype="multipart/form-data"  accept="image/*,video/*">
             @csrf
 
             <select name="category" class="form-select mb-3" required>
@@ -198,11 +198,18 @@ body {
                 <option>Group selfie with strangers</option>
             </select>
 
-            <input type="file" name="files[]" multiple class="form-control mb-3">
+            <input type="file" name="files[]" multiple class="form-control mb-3" required>
+
+
+
+            
+
 
             <div id="progressContainer" class="progress mb-3 d-none">
                 <div id="progressBar" class="progress-bar bg-success" style="width:0%">0%</div>
             </div>
+
+            
 
             <button id="uploadBtn" class="btn btn-romantic w-100 text-white mb-2">
                 💌 Upload Love Memory
@@ -319,9 +326,26 @@ document.querySelector("form").addEventListener("submit", function(e) {
                 document.querySelector("form").reset();
             }, 1000);
 
-        } else {
+        } 
+         // 🔥 HANDLE EXPIRED GOOGLE SESSION
+    else if (xhr.status === 401 || xhr.status === 403) {
+
+        bar.classList.remove("bg-warning");
+        bar.classList.add("bg-danger");
+        bar.innerText = "Session Expired, redirecting... 🔐";
+
+        setTimeout(() => {
+            window.location.href = "/auth/google";
+        }, 1500);
+
+    }   
+        else {
             bar.classList.remove("bg-warning");
             bar.classList.add("bg-danger");
+
+            console.log("STATUS:", xhr.status);
+    console.log("RESPONSE:", xhr.responseText);
+    
             bar.innerText = "Upload Failed ❌";
         }
 
@@ -333,13 +357,75 @@ document.querySelector("form").addEventListener("submit", function(e) {
 
     xhr.onerror = function() {
         bar.classList.add("bg-danger");
-        bar.innerText = "Network Error ❌";
+    bar.innerText = "Connection Error ❌";
 
-        btn.disabled = false;
-        btn.innerText = "💌 Upload Love Memory";
-        btn.style.opacity = "1";
+    setTimeout(() => {
+        window.location.href = "/auth/google";
+    }, 1500);
+
+    btn.disabled = false;
+    btn.innerText = "💌 Upload Love Memory";
+    btn.style.opacity = "1";
     };
 
     xhr.send(formData);
+});
+
+
+
+
+const fileInput = document.querySelector('input[name="files[]"]');
+
+fileInput.addEventListener('change', function () {
+
+    let files = this.files;
+
+    let imageCount = 0;
+    let videoCount = 0;
+
+    // 20MB
+    const maxVideoSize = 20 * 1024 * 1024;
+
+    for (let file of files) {
+
+        // count images
+        if (file.type.startsWith('image/')) {
+            imageCount++;
+        }
+
+        // check videos
+        if (file.type.startsWith('video/')) {
+
+            videoCount++;
+
+            // ❌ video larger than 20MB
+            if (file.size > maxVideoSize) {
+
+                alert("Video must not exceed 20MB 🎥");
+
+                this.value = "";
+                return;
+            }
+        }
+    }
+
+    // ❌ max 5 images
+    if (imageCount > 5) {
+
+        alert("You can only upload a maximum of 5 images every upload 💕");
+
+        this.value = "";
+        return;
+    }
+
+    // ❌ only 1 video
+    if (videoCount > 1) {
+
+        alert("Only 1 video is allowed 🎥");
+
+        this.value = "";
+        return;
+    }
+
 });
 </script>

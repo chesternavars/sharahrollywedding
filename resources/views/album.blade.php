@@ -10,10 +10,13 @@
 
 <style>
 body {
-    background: radial-gradient(circle at top, #0f172a, #020617);
-    color: white;
-    font-family: 'Montserrat', sans-serif;
+    background:
+        linear-gradient(rgba(88,28,45,0.55), rgba(15,23,42,0.85)),
+        url('/images/background.png') center/cover no-repeat fixed;
+
     min-height: 100vh;
+    font-family: 'Montserrat', sans-serif;
+    color: white;
     overflow-x: hidden;
 }
 
@@ -106,6 +109,7 @@ body {
     transition:0.3s;
     box-shadow:0 10px 25px rgba(0,0,0,0.4);
 }
+
 
 .img-box img:hover {
     transform:scale(1.06);
@@ -217,13 +221,39 @@ body {
     <div class="row g-3">
 
         @forelse($images as $index => $img)
-
             <div class="col-6 col-md-3">
+                <div class="img-box" onclick="openModal({{ $index }})" style="cursor:pointer;">
+                 @if(($img['type'] ?? 'image') === 'video')
+   <div style="position:relative;cursor:pointer;" onclick="openModal({{ $index }})">
 
-                <div class="img-box">
+    <img src="{{ $img['thumbnail'] }}"
+         style="width:100%;border-radius:14px;display:block;">
 
-                    <img src="{{ $img['url'] }}"
-                         onclick="openModal({{ $index }})">
+    <div style="
+        position:absolute;
+        inset:0;
+        background:linear-gradient(to top, rgba(0,0,0,0.3), transparent);
+        border-radius:14px;
+    "></div>
+
+    <div style="
+        position:absolute;
+        top:50%;
+        left:50%;
+        transform:translate(-50%, -50%);
+        font-size:28px;
+        color:white;
+    ">
+        ▶
+    </div>
+
+</div>
+@else
+    <img src="{{ $img['url'] }}" style="width:100%;border-radius:14px;">
+@endif
+
+
+               
 
                 </div>
 
@@ -248,7 +278,7 @@ body {
 
     <button class="nav-btn prev-btn" onclick="prevImage()">‹</button>
 
-    <img id="modalImage">
+    <div id="modalContent"></div>
 
     <button class="nav-btn next-btn" onclick="nextImage()">›</button>
 
@@ -259,20 +289,66 @@ body {
 <script>
 
 let images = @json($images);
+
+console.log(images);
+if (!images.length) {
+    images = [];
+}
+
 let currentIndex = 0;
 
 function openModal(i){
+    if (!images.length) return;
     currentIndex = i;
     document.getElementById('imageModal').style.display='flex';
     update();
 }
 
-function update(){
-    document.getElementById('modalImage').src = images[currentIndex].url;
-    document.getElementById('modalCategory').innerText = images[currentIndex].category;
+function update() {
+    let item = images[currentIndex];
+    let html;
+
+    if (item.type === 'video') {
+
+        let fileId = item.url.match(/id=([^&]+)/)[1];
+
+        html = `
+<div style="
+    width:100%;
+    max-width:900px;
+    aspect-ratio: 16 / 9;
+    margin:auto;
+">
+
+    <iframe src="https://drive.google.com/file/d/${fileId}/preview"
+        style="
+            width:100%;
+            height:100%;
+            border-radius:12px;
+            border:none;
+        "
+        allow="autoplay">
+    </iframe>
+
+</div>
+`;
+
+    } else {
+
+        html = `
+            <img src="${item.url}"
+                style="max-width:95%;max-height:80vh;border-radius:12px;">
+        `;
+    }
+
+    document.getElementById('modalContent').innerHTML = html;
 }
 
 function closeModal(){
+  
+  let video = document.querySelector('#modalContent video');
+    if(video) video.pause();
+
     document.getElementById('imageModal').style.display='none';
 }
 
@@ -285,6 +361,17 @@ function prevImage(){
     currentIndex = (currentIndex-1+images.length)%images.length;
     update();
 }
+
+
+document.addEventListener('keydown', function(e){
+    if(document.getElementById('imageModal').style.display === 'flex'){
+
+        if(e.key === 'ArrowRight') nextImage();
+        if(e.key === 'ArrowLeft') prevImage();
+        if(e.key === 'Escape') closeModal();
+
+    }
+});
 
 </script>
 

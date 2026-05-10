@@ -16,6 +16,7 @@ class UploadController extends Controller
 
     public function index()
 {
+   
     return view('home');
 }
     
@@ -42,7 +43,7 @@ private function drive()
     $request->validate([
         'category' => 'required|string',
         'files' => 'required',
-        'files.*' => 'image|max:5120'
+       'files.*' => 'mimes:jpg,jpeg,png,webp,mp4,mov,avi|max:20480'
     ]);
 
     $user = session('user');
@@ -127,11 +128,28 @@ private function drive()
 
 
 
+
+
   // SAVE TO JSON
+
+$type = str_starts_with($file->getMimeType(), 'video/')
+    ? 'video'
+    : 'image';
+
+
+    if ($type === 'video') {
+    $url = "https://drive.google.com/uc?export=view&id={$fileId}";
+} else {
+    $url = "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000";
+}
+
       $this->saveImages([
     'file_id' => $fileId,
     'category' => $category,
-    'url' => "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000"
+    'type' => $type,
+    'url' => $url,
+    'thumbnail' => "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000",
+    'created_at' => now()->toDateTimeString() // 👈 added
 ]);
 
 
@@ -150,13 +168,26 @@ private function drive()
 );
 
 
+$type = str_starts_with($file->getMimeType(), 'video/')
+    ? 'video'
+    : 'image';
 
-$url = "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000";
+      if ($type === 'video') {
+    $url = "https://drive.google.com/uc?export=view&id={$fileId}";
+} else {
+    $url = "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000";
+}
+
 $uploadedFiles[] = [
     'id' => $fileId,
     'name' => $fileName,
+    'type' => $type,
+    'thumbnail' => "https://drive.google.com/thumbnail?id={$fileId}&sz=w1000",
     'url' => $url
 ];
+
+
+
 
  // $this->saveImages($images);
 
